@@ -9,6 +9,10 @@ pub use glam::Vec2;
 use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
+use std::{cell::RefCell, rc::Rc};
+
+mod event;
+mod gameobject;
 
 pub mod rand;
 
@@ -16,7 +20,11 @@ pub mod drawing;
 pub mod exec;
 
 pub use drawing::*;
+pub use event::Event;
+pub use gameobject::*;
 pub use macroquad_macro::main;
+
+use event::SharedEventsQueue;
 
 #[cfg(feature = "log-impl")]
 pub use miniquad::{debug, info, log, warn};
@@ -33,6 +41,10 @@ struct Context {
     mouse_wheel: Vec2,
 
     draw_context: DrawContext,
+    events_queue: SharedEventsQueue,
+
+    futures: Vec<(Pin<Box<dyn Future<Output = ()>>>, exec::FutureContext)>,
+    gameobjects: GameObjectStorage,
 }
 
 impl Context {
@@ -51,6 +63,10 @@ impl Context {
             draw_context: DrawContext::new(&mut ctx),
 
             quad_context: ctx,
+            events_queue: Rc::new(RefCell::new(vec![])),
+
+            futures: vec![],
+            gameobjects: GameObjectStorage::new(),
         }
     }
 
@@ -83,8 +99,6 @@ static mut CONTEXT: Option<Context> = None;
 fn get_context() -> &'static mut Context {
     unsafe { CONTEXT.as_mut().unwrap_or_else(|| panic!()) }
 }
-
-static mut MAIN_FUTURE: Option<Pin<Box<dyn Future<Output = ()>>>> = None;
 
 struct Stage {}
 
@@ -130,18 +144,25 @@ impl EventHandlerFree for Stage {
     fn key_down_event(&mut self, keycode: KeyCode, _: KeyMods, _: bool) {
         let context = get_context();
         context.keys_pressed.insert(keycode);
+
+        let mut events = context.events_queue.borrow_mut();
+        events.push(Event::KeyDown(keycode));
     }
 
     fn key_up_event(&mut self, keycode: KeyCode, _: KeyMods) {
         let context = get_context();
         context.keys_pressed.remove(&keycode);
+
+        let mut events = context.events_queue.borrow_mut();
+        events.push(Event::KeyUp(keycode));
     }
 
     fn update(&mut self) {}
 
     fn draw(&mut self) {
-        exec::resume(unsafe { MAIN_FUTURE.as_mut().unwrap() });
-
+        for (future, context) in &mut get_context().futures {
+            exec::resume(future, context);
+        }
         get_context().end_frame();
     }
 }
@@ -151,15 +172,36 @@ pub struct Window {}
 impl Window {
     pub fn new(_label: &str, future: impl Future<Output = ()> + 'static) {
         miniquad::start(conf::Conf::default(), |ctx| {
-            unsafe {
-                MAIN_FUTURE = Some(Box::pin(future));
-            }
-            unsafe { CONTEXT = Some(Context::new(ctx)) };
-            exec::resume(unsafe { MAIN_FUTURE.as_mut().unwrap() });
-
+            let mut context = Context::new(ctx);
+            context.futures.push((
+                Box::pin(future),
+                exec::FutureContext {
+                    processed_events: 0,
+                    state: exec::ExecState::RunOnce,
+                },
+            ));
+            unsafe { CONTEXT = Some(context) };
             UserData::free(Stage {})
         });
     }
+}
+
+pub fn start_coroutine(future: impl Future<Output = ()> + 'static) {
+    let context = get_context();
+
+    context.futures.push((
+        Box::pin(future),
+        exec::FutureContext {
+            processed_events: 0,
+            state: exec::ExecState::RunOnce,
+        },
+    ));
+}
+
+pub fn next_event() -> exec::EventFuture {
+    let context = get_context();
+
+    exec::EventFuture::new(context.events_queue.clone())
 }
 
 pub fn next_frame() -> exec::FrameFuture {
@@ -217,9 +259,6 @@ pub fn screen_height() -> f32 {
 }
 
 pub fn load_texture<'a>(path: &str) -> exec::TextureLoadingFuture {
-    use std::cell::RefCell;
-    use std::rc::Rc;
-
     let texture = Rc::new(RefCell::new(None));
     let path = path.to_owned();
 
