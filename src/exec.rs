@@ -2,7 +2,10 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::event::{Event, SharedEventsQueue};
+use crate::{
+    event::{Event, SharedEventsQueue},
+    Coroutine,
+};
 
 pub struct FutureContext {
     pub processed_events: u32,
@@ -83,9 +86,56 @@ impl Future for EventFuture {
     }
 }
 
-pub fn resume(future: &mut Pin<Box<dyn Future<Output = ()>>>, context: &mut FutureContext) {
+pub struct WaitCoroutineFuture {
+    pub(crate) coroutine: Coroutine,
+}
+impl WaitCoroutineFuture {
+    pub fn new(events: SharedEventsQueue) -> EventFuture {
+        EventFuture { events }
+    }
+}
+impl Unpin for WaitCoroutineFuture {}
+
+impl Future for WaitCoroutineFuture {
+    type Output = Option<()>;
+
+    fn poll(self: Pin<&mut Self>, _: &mut Context) -> Poll<Self::Output> {
+        let global_context = crate::get_context();
+
+        if global_context.futures[self.coroutine.id].is_none() {
+            Poll::Ready(Some(()))
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+pub struct TimerDelayFuture {
+    pub(crate) start_time: f64,
+    pub(crate) time: f32,
+}
+impl TimerDelayFuture {
+    pub fn new(events: SharedEventsQueue) -> EventFuture {
+        EventFuture { events }
+    }
+}
+impl Unpin for TimerDelayFuture {}
+
+impl Future for TimerDelayFuture {
+    type Output = Option<()>;
+
+    fn poll(self: Pin<&mut Self>, _: &mut Context) -> Poll<Self::Output> {
+        if miniquad::date::now() - self.start_time >= self.time as f64 {
+            Poll::Ready(Some(()))
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+pub fn resume(future: &mut Pin<Box<dyn Future<Output = ()>>>, context: &mut FutureContext) -> bool {
     context.state = ExecState::RunOnce;
 
     let futures_context_ref: &mut _ = unsafe { std::mem::transmute(context) };
-    let _ = future.as_mut().poll(futures_context_ref);
+    future.as_mut().poll(futures_context_ref) == Poll::Ready(())
 }

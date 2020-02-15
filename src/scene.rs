@@ -21,25 +21,33 @@ impl<T> Clone for GameObject<T> {
 }
 impl<T> Copy for GameObject<T> {}
 
-pub(crate) struct GameObjectStorage(Vec<Option<Box<dyn Any>>>);
+pub(crate) struct Scene(Vec<Option<Box<dyn Any>>>);
 
-impl GameObjectStorage {
-    pub fn new() -> GameObjectStorage {
-        GameObjectStorage(vec![])
+impl Scene {
+    pub fn new() -> Scene {
+        Scene(vec![])
     }
 }
 
 pub struct GameObjectRef<T: Any + 'static> {
     gameobject: Option<Box<T>>,
     id: usize,
+    deleted: bool,
 }
 
+impl<T: Any + 'static> GameObjectRef<T> {
+    pub fn delete(&mut self) {
+        self.deleted = true;
+    }
+}
 impl<T: Any + 'static> Drop for GameObjectRef<T> {
     fn drop(&mut self) {
-        let gameobject = self.gameobject.take().unwrap();
-        let context = get_context();
+        if self.deleted == false {
+            let gameobject = self.gameobject.take().unwrap();
+            let context = get_context();
 
-        context.gameobjects.0[self.id] = Some(gameobject as Box<dyn Any>);
+            context.scene.0[self.id] = Some(gameobject as Box<dyn Any>);
+        }
     }
 }
 impl<T: Any> Deref for GameObjectRef<T> {
@@ -60,8 +68,8 @@ impl<T: Any + 'static> GameObject<T> {
     pub fn new(data: T) -> GameObject<T> {
         let context = get_context();
 
-        let id = context.gameobjects.0.len();
-        context.gameobjects.0.push(Some(Box::new(data)));
+        let id = context.scene.0.len();
+        context.scene.0.push(Some(Box::new(data)));
         GameObject {
             id: id,
             _marker: std::marker::PhantomData,
@@ -71,13 +79,28 @@ impl<T: Any + 'static> GameObject<T> {
     pub fn get(&self) -> GameObjectRef<T> {
         let context = get_context();
 
-        let gameobject = context.gameobjects.0[self.id]
-            .take()
-            .unwrap_or_else(|| panic!());
+        let gameobject = context.scene.0[self.id].take().unwrap_or_else(|| panic!());
 
         GameObjectRef {
             gameobject: Some(gameobject.downcast::<T>().unwrap_or_else(|_| panic!())),
             id: self.id,
+            deleted: false,
         }
     }
+}
+
+pub fn clear() {
+    let context = get_context();
+
+    context.scene.0.clear();
+}
+
+pub fn all_scene_objects() -> impl Iterator<Item = &'static mut Box<dyn Any>> {
+    let context = get_context();
+
+    context
+        .scene
+        .0
+        .iter_mut()
+        .filter_map(|gameobject| gameobject.as_mut())
 }

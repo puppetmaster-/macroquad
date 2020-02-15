@@ -12,16 +12,15 @@ use std::pin::Pin;
 use std::{cell::RefCell, rc::Rc};
 
 mod event;
-mod gameobject;
 
 pub mod rand;
 
 pub mod drawing;
 pub mod exec;
+pub mod scene;
 
 pub use drawing::*;
 pub use event::Event;
-pub use gameobject::*;
 pub use macroquad_macro::main;
 
 use event::SharedEventsQueue;
@@ -43,8 +42,8 @@ struct Context {
     draw_context: DrawContext,
     events_queue: SharedEventsQueue,
 
-    futures: Vec<(Pin<Box<dyn Future<Output = ()>>>, exec::FutureContext)>,
-    gameobjects: GameObjectStorage,
+    futures: Vec<Option<(Pin<Box<dyn Future<Output = ()>>>, exec::FutureContext)>>,
+    scene: scene::Scene,
 }
 
 impl Context {
@@ -66,7 +65,7 @@ impl Context {
             events_queue: Rc::new(RefCell::new(vec![])),
 
             futures: vec![],
-            gameobjects: GameObjectStorage::new(),
+            scene: scene::Scene::new(),
         }
     }
 
@@ -160,8 +159,13 @@ impl EventHandlerFree for Stage {
     fn update(&mut self) {}
 
     fn draw(&mut self) {
-        for (future, context) in &mut get_context().futures {
-            exec::resume(future, context);
+        for (n, future) in &mut get_context().futures.iter_mut().enumerate() {
+            if let Some((f, context)) = future {
+                if exec::resume(f, context) {
+                    println!("future: {}", n);
+                    *future = None;
+                }
+            }
         }
         get_context().end_frame();
     }
@@ -173,35 +177,61 @@ impl Window {
     pub fn new(_label: &str, future: impl Future<Output = ()> + 'static) {
         miniquad::start(conf::Conf::default(), |ctx| {
             let mut context = Context::new(ctx);
-            context.futures.push((
+            context.futures.push(Some((
                 Box::pin(future),
                 exec::FutureContext {
                     processed_events: 0,
                     state: exec::ExecState::RunOnce,
                 },
-            ));
+            )));
             unsafe { CONTEXT = Some(context) };
             UserData::free(Stage {})
         });
     }
 }
 
-pub fn start_coroutine(future: impl Future<Output = ()> + 'static) {
+#[derive(Clone, Copy, Debug)]
+pub struct Coroutine {
+    id: usize,
+}
+
+pub fn start_coroutine(future: impl Future<Output = ()> + 'static) -> Coroutine {
     let context = get_context();
 
-    context.futures.push((
+    context.futures.push(Some((
         Box::pin(future),
         exec::FutureContext {
             processed_events: 0,
             state: exec::ExecState::RunOnce,
         },
-    ));
+    )));
+
+    Coroutine {
+        id: context.futures.len() - 1,
+    }
+}
+
+pub fn stop_coroutine(coroutine: Coroutine) {
+    let context = get_context();
+
+    context.futures[coroutine.id] = None;
 }
 
 pub fn next_event() -> exec::EventFuture {
     let context = get_context();
 
     exec::EventFuture::new(context.events_queue.clone())
+}
+
+pub fn await_coroutine(coroutine: Coroutine) -> exec::WaitCoroutineFuture {
+    exec::WaitCoroutineFuture { coroutine }
+}
+
+pub fn wait_seconds(time: f32) -> exec::TimerDelayFuture {
+    exec::TimerDelayFuture {
+        start_time: miniquad::date::now(),
+        time,
+    }
 }
 
 pub fn next_frame() -> exec::FrameFuture {
