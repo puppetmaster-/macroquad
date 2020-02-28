@@ -159,7 +159,7 @@ impl DrawContext {
     }
 
     pub fn perform_render_passes(&mut self, ctx: &mut miniquad::Context) {
-        self.draw_ui(ctx);
+        self.ui.new_frame();
 
         for _ in 0..self.draw_calls.len() - self.draw_calls_bindings.len() {
             let vertex_buffer = Buffer::stream(
@@ -260,11 +260,10 @@ impl DrawContext {
         dc.texture = texture;
     }
 
-    pub fn draw_ui(&mut self, _: &mut miniquad::Context) {
+    pub fn draw_ui(&mut self) {
         self.ui_draw_list.clear();
 
         self.ui.render(&mut self.ui_draw_list);
-        self.ui.new_frame();
 
         let mut ui_draw_list = vec![];
 
@@ -473,6 +472,8 @@ impl DrawContext {
             megaui::Vector2::new(size.x(), size.y()),
         )
         .ui(&mut self.ui, f);
+
+        self.draw_ui();
     }
 }
 
