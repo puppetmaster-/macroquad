@@ -1,10 +1,10 @@
 use macroquad::{
-    self as mq, clear_background, draw_circle, draw_rectangle, draw_text, is_key_down, next_frame,
+    self as mq, clear_background, draw_circle, draw_rectangle, draw_text, is_key_down, 
     set_screen_coordinates, KeyCode, ScreenCoordinates,
 };
 
 #[macroquad::main("Arkanoid")]
-async fn main() {
+fn main() {
     const BLOCKS_W: usize = 10;
     const BLOCKS_H: usize = 10;
     const SCR_W: f32 = 20.0;
@@ -90,6 +90,6 @@ async fn main() {
             mq::DARKPURPLE,
         );
 
-        next_frame().await
+        mq::next_frame!();
     }
 }

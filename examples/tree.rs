@@ -27,7 +27,7 @@ fn tree(gl: &mut QuadGl, time: f64, deep: u32, angle: f32, tall: f32) {
 }
 
 #[macroquad::main("Tree")]
-async fn main() {
+fn main() {
     set_screen_coordinates(ScreenCoordinates::Fixed(-1., 1., -0.2, 1.4));
 
     loop {

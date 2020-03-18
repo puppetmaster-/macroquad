@@ -1,7 +1,7 @@
 use macroquad::*;
 
 #[macroquad::main("BasicShapes")]
-async fn main() {
+fn main() {
     loop {
         clear_background(RED);
 

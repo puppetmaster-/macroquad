@@ -27,6 +27,14 @@ pub use quad_gl::{QuadGl, Vertex};
 #[cfg(feature = "log-impl")]
 pub use miniquad::{debug, info, log, warn};
 
+#[macro_export]
+macro_rules! next_frame {
+    () => {
+        #[cfg(target = "wasm32-unknown-unknown")]
+        $crate::next_frame().await
+    }
+}
+
 struct Context {
     quad_context: QuadContext,
 
@@ -152,7 +160,7 @@ impl EventHandlerFree for Stage {
     fn update(&mut self) {}
 
     fn draw(&mut self) {
-        exec::resume(unsafe { MAIN_FUTURE.as_mut().unwrap() });
+        //exec::resume(unsafe { MAIN_FUTURE.as_mut().unwrap() });
 
         get_context().end_frame();
     }
@@ -161,7 +169,7 @@ impl EventHandlerFree for Stage {
 pub struct Window {}
 
 impl Window {
-    pub fn new(_label: &str, future: impl Future<Output = ()> + 'static) {
+    pub fn new_async(_label: &str, future: impl Future<Output = ()> + 'static) {
         miniquad::start(conf::Conf::default(), |ctx| {
             unsafe {
                 MAIN_FUTURE = Some(Box::pin(future));
@@ -172,6 +180,15 @@ impl Window {
             UserData::free(Stage {})
         });
     }
+
+    pub fn new_sync(_label: &str) {
+        miniquad::start(conf::Conf::default(), |ctx| {
+            unsafe { CONTEXT = Some(Context::new(ctx)) };
+
+            UserData::free(Stage {})
+        });
+    }
+
 }
 
 pub fn next_frame() -> exec::FrameFuture {

@@ -1,7 +1,7 @@
 use macroquad::{clear_background, draw_window, hash, next_frame, Vec2, RED};
 
 #[macroquad::main("TestWindow")]
-async fn main() {
+fn main() {
     loop {
         clear_background(RED);
 

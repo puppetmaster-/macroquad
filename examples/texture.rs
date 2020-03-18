@@ -1,7 +1,7 @@
 use macroquad::*;
 
 #[macroquad::main("Texture")]
-async fn main() {
+fn main() {
     let texture = load_texture("ferris.png").await;
 
     debug!("hello");

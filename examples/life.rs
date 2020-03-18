@@ -4,7 +4,7 @@ use macroquad::{
 };
 
 #[macroquad::main("Life")]
-async fn main() {
+fn main() {
     let w = screen_width() as usize;
     let h = screen_height() as usize;
 
