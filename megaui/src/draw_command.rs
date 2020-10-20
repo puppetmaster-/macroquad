@@ -1,11 +1,8 @@
 use crate::{Color, Rect, Vector2};
 
-use miniquad_text_rusttype::FontAtlas;
+use crate::FontAtlas;
 
 use std::rc::Rc;
-
-trait Wtf: std::any::Any + Clone {
-}
 
 #[derive(Debug, Clone)]
 pub(crate) enum DrawCommand {
@@ -109,11 +106,8 @@ impl CommandsList {
     /// usually used as an advance between current cursor position
     /// and next potential character
     pub fn character_advance(&self, character: char) -> f32 {
-        if let Some(font_data) = self.font_atlas.character_infos.get(&character) {
-            let font_data = font_data.scale(self.font_atlas.font_size as f32);
-            let advance = font_data.left_padding + font_data.size.0 + font_data.right_padding;
-
-            return advance;
+        if let Some(font_data) = self.font_atlas.get(&character) {
+            return font_data.advance;
         }
 
         0.
@@ -137,16 +131,11 @@ impl CommandsList {
         position: Vector2,
         color: Color,
     ) -> Option<f32> {
-        if let Some(font_data) = self.font_atlas.character_infos.get(&character) {
-            let font_data = font_data.scale(self.font_atlas.font_size as f32);
-
-            let left_coord = font_data.left_padding;
-            // 4.0 cames from lack of understanding of how ttf works
-            // with 4.0 top_coord is a top_coord of any buttons, wich makes a character be drawen like:
-            // (x, y).....................(x + advance, y)
-            // ...........................
-            // (x, y + self.font_size.y)..(x + advance, y + _)
-            let top_coord = self.font_atlas.font_size as f32 - font_data.height_over_line - 4.0;
+        if let Some(font_data) = self.font_atlas.get(&character) {
+            let left_coord = font_data.offset_x as f32;
+            let top_coord = 15.0
+                - font_data.glyph_h as f32 * params.font_scale
+                - font_data.offset_y as f32 * params.font_scale;
 
             let cmd = DrawCommand::DrawCharacter {
                 dest: Rect::new(

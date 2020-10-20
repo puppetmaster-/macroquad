@@ -39,6 +39,19 @@ macro_rules! hash {
     }};
 }
 
+pub struct CharacterInfo {
+    pub advance: f32
+}
+
+pub struct FontAtlas {
+}
+
+impl FontAtlas {
+    fn get(&self, charactger: &char) -> Option<CharacterInfo> {
+        unimplemented!()
+    }
+}
+
 pub trait ClipboardObject {
     fn get(&self) -> Option<String>;
     fn set(&mut self, data: &str);

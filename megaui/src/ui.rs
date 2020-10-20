@@ -3,7 +3,7 @@ use crate::{
     types::Vector2, Id, InputHandler, Style,
 };
 
-use miniquad_text_rusttype::FontAtlas;
+use crate::FontAtlas;
 use std::{collections::HashMap, rc::Rc};
 
 mod cursor;
