@@ -369,21 +369,16 @@ impl InputHandler for Ui {
 
 impl Ui {
     pub fn new() -> Ui {
-        let mut font_atlas = FontAtlas::new(
-            &include_bytes!("../assets/ProggyClean.ttf")[..],
-            13,
-            FontAtlas::ascii_character_list(),
-        )
-        .unwrap();
+        let mut font_atlas = unimplemented!();
 
         let white_square = [(0, 0), (1, 0), (1, 1), (0, 1)];
-        let w = font_atlas.texture.width;
-        for pixel in white_square.iter() {
-            font_atlas.texture.data[(pixel.0 + w * pixel.1 + 0) as usize] = 255;
-            font_atlas.texture.data[(pixel.0 + w * pixel.1 + 1) as usize] = 255;
-            font_atlas.texture.data[(pixel.0 + w * pixel.1 + 2) as usize] = 255;
-            font_atlas.texture.data[(pixel.0 + w * pixel.1 + 3) as usize] = 255;
-        }
+        // let w = font_atlas.texture.width;
+        // for pixel in white_square.iter() {
+        //     font_atlas.texture.data[(pixel.0 + w * pixel.1 + 0) as usize] = 255;
+        //     font_atlas.texture.data[(pixel.0 + w * pixel.1 + 1) as usize] = 255;
+        //     font_atlas.texture.data[(pixel.0 + w * pixel.1 + 2) as usize] = 255;
+        //     font_atlas.texture.data[(pixel.0 + w * pixel.1 + 3) as usize] = 255;
+        // }
 
         Ui {
             input: Input::default(),

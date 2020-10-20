@@ -21,6 +21,7 @@ pub struct DrawContext {
 
 impl DrawContext {
     pub fn new(ctx: &mut miniquad::Context) -> DrawContext {
+        let font_data = fontdue::Font::load_ ()
         let mut ui = megaui::Ui::new();
         ui.set_clipboard_object(crate::ui::ClipboardObject);
 

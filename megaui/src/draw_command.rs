@@ -48,10 +48,7 @@ impl DrawCommand {
                 source,
                 color,
             },
-            DrawCommand::DrawRawTexture {
-                rect,
-                texture,
-            } => DrawCommand::DrawRawTexture {
+            DrawCommand::DrawRawTexture { rect, texture } => DrawCommand::DrawRawTexture {
                 rect: rect.offset(offset),
                 texture,
             },
@@ -133,29 +130,26 @@ impl CommandsList {
     ) -> Option<f32> {
         if let Some(font_data) = self.font_atlas.get(&character) {
             let left_coord = font_data.offset_x as f32;
-            let top_coord = 15.0
-                - font_data.glyph_h as f32 * params.font_scale
-                - font_data.offset_y as f32 * params.font_scale;
+            let top_coord = self.font_atlas.font_size - font_data.glyph_h as f32 - font_data.offset_y as f32;
 
             let cmd = DrawCommand::DrawCharacter {
                 dest: Rect::new(
                     left_coord + position.x,
                     top_coord + position.y,
-                    font_data.size.0,
-                    font_data.size.1,
+                    font_data.glyph_w as f32,
+                    font_data.glyph_h as f32,
                 ),
                 source: Rect::new(
-                    font_data.tex_coords.0,
-                    font_data.tex_coords.1,
-                    font_data.tex_size.0,
-                    font_data.tex_size.1,
+                    font_data.glyph_x as f32,
+                    font_data.glyph_y as f32,
+                    font_data.glyph_w as f32,
+                    font_data.glyph_h as f32,
                 ),
-                color: color,
+                color,
             };
             self.add_command(cmd);
 
-            let advance = font_data.left_padding + font_data.size.0 + font_data.right_padding;
-            Some(advance)
+            Some(font_data.advance)
         } else {
             None
         }
@@ -183,16 +177,14 @@ impl CommandsList {
     }
 
     pub fn draw_raw_texture(&mut self, rect: Rect, texture: u32) {
-        if self.clipping_zone.map_or(false, |clip| {
-            !clip.overlaps(&rect)
-        }) {
+        if self
+            .clipping_zone
+            .map_or(false, |clip| !clip.overlaps(&rect))
+        {
             return;
         }
 
-        self.add_command(DrawCommand::DrawRawTexture {
-            rect,
-            texture,
-        })
+        self.add_command(DrawCommand::DrawRawTexture { rect, texture })
     }
 
     pub fn draw_rect<S, T>(&mut self, rect: Rect, stroke: S, fill: T)

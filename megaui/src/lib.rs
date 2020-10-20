@@ -40,10 +40,18 @@ macro_rules! hash {
 }
 
 pub struct CharacterInfo {
-    pub advance: f32
+    pub offset_x: i32,
+    pub offset_y: i32,
+    pub advance: f32,
+
+    pub glyph_x: u32,
+    pub glyph_y: u32,
+    pub glyph_w: u32,
+    pub glyph_h: u32
 }
 
 pub struct FontAtlas {
+    pub font_size: f32
 }
 
 impl FontAtlas {
